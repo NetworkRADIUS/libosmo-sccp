@@ -25,7 +25,7 @@
 #include <string.h>
 
 #include <osmocom/core/msgb.h>
-#include <osmocom/core/talloc.h>
+#include <talloc.h>
 #include <osmocom/core/logging.h>
 #include <osmocom/gsm/tlv.h>
 

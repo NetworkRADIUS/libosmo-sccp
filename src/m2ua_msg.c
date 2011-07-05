@@ -20,7 +20,7 @@
 
 #include <osmocom/core/msgb.h>
 #include <osmocom/core/logging.h>
-#include <osmocom/core/talloc.h>
+#include <talloc.h>
 
 #include <arpa/inet.h>
 

@@ -1,5 +1,5 @@
 INCLUDES = $(all_includes) -I$(top_srcdir)/include -I$(top_builddir)
-AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS)
+AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS) $(LIBTALLOC_CFLAGS)
 
 sccpdir = $(libdir)
 sccp_LIBRARIES = libsccp.a libmtp.a libm2ua.a
