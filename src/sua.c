@@ -873,7 +873,7 @@ static int sua_rx_cl(struct osmo_sua_link *link,
 	return rc;
 }
 
-/* RFC 3868 3.3.3 / SCCP CR */
+/* RFC 3868 3.3.3 / SCCP CR (Connection Request) */
 static int sua_rx_core(struct osmo_sua_link *link, struct xua_msg *xua)
 {
 	struct osmo_scu_prim *prim;
@@ -918,7 +918,7 @@ static int sua_rx_core(struct osmo_sua_link *link, struct xua_msg *xua)
 	return 0;
 }
 
-/* RFC 3868 3.3.4 / SCCP CC */
+/* RFC 3868 3.3.4 / SCCP CC (Connection Confirm) */
 static int sua_rx_coak(struct osmo_sua_link *link, struct xua_msg *xua)
 {
 	struct osmo_scu_prim *prim;
@@ -933,7 +933,6 @@ static int sua_rx_coak(struct osmo_sua_link *link, struct xua_msg *xua)
 	if (!conn) {
 		LOGP(DSUA, LOGL_ERROR, "COAK for unknwon reference %u\n",
 			conn_id);
-		/* FIXME: error message? */
 		return -1;
 	}
 	conn_restart_rx_inact_timer(conn);
@@ -941,7 +940,6 @@ static int sua_rx_coak(struct osmo_sua_link *link, struct xua_msg *xua)
 	if (conn->state != S_CONN_PEND_OUT) {
 		LOGP(DSUA, LOGL_ERROR, "COAK in wrong state %s\n",
 			get_value_string(conn_state_names, conn->state));
-		/* FIXME: error message? */
 		return -EINVAL;
 	}
 
@@ -979,7 +977,7 @@ static int sua_rx_coak(struct osmo_sua_link *link, struct xua_msg *xua)
 	return 0;
 }
 
-/* RFC 3868 3.3.5 / SCCP CREF */
+/* RFC 3868 3.3.5 / SCCP CREF (Connection Refused) */
 static int sua_rx_coref(struct osmo_sua_link *link, struct xua_msg *xua)
 {
 	struct osmo_scu_prim *prim;
@@ -995,7 +993,6 @@ static int sua_rx_coref(struct osmo_sua_link *link, struct xua_msg *xua)
 	if (!conn) {
 		LOGP(DSUA, LOGL_ERROR, "COREF for unknwon reference %u\n",
 			conn_id);
-		/* FIXME: error message? */
 		return -1;
 	}
 	conn_restart_rx_inact_timer(conn);
@@ -1033,7 +1030,7 @@ static int sua_rx_coref(struct osmo_sua_link *link, struct xua_msg *xua)
 	return 0;
 }
 
-/* RFC 3868 3.3.6 / SCCP RLSD */
+/* RFC 3868 3.3.6 / SCCP RLSD (Released) */
 static int sua_rx_relre(struct osmo_sua_link *link, struct xua_msg *xua)
 {
 	struct osmo_scu_prim *prim;
@@ -1049,7 +1046,6 @@ static int sua_rx_relre(struct osmo_sua_link *link, struct xua_msg *xua)
 	if (!conn) {
 		LOGP(DSUA, LOGL_ERROR, "RELRE for unknwon reference %u\n",
 			conn_id);
-		/* FIXME: error message? */
 		return -1;
 	}
 
@@ -1085,7 +1081,7 @@ static int sua_rx_relre(struct osmo_sua_link *link, struct xua_msg *xua)
 	return 0;
 }
 
-/* RFC 3868 3.3.7 / SCCP RLC */
+/* RFC 3868 3.3.7 / SCCP RLC (Release Complete)*/
 static int sua_rx_relco(struct osmo_sua_link *link, struct xua_msg *xua)
 {
 	struct osmo_scu_prim *prim;
@@ -1099,7 +1095,6 @@ static int sua_rx_relco(struct osmo_sua_link *link, struct xua_msg *xua)
 	if (!conn) {
 		LOGP(DSUA, LOGL_ERROR, "RELCO for unknwon reference %u\n",
 			conn_id);
-		/* FIXME: error message? */
 		return -1;
 	}
 	conn_restart_rx_inact_timer(conn);
@@ -1130,7 +1125,7 @@ static int sua_rx_relco(struct osmo_sua_link *link, struct xua_msg *xua)
 
 }
 
-/* RFC3868 3.3.1 / SCCP DT1 */
+/* RFC3868 3.3.1 / SCCP DT1 (Data Form 1) */
 static int sua_rx_codt(struct osmo_sua_link *link, struct xua_msg *xua)
 {
 	struct osmo_scu_prim *prim;
@@ -1146,14 +1141,12 @@ static int sua_rx_codt(struct osmo_sua_link *link, struct xua_msg *xua)
 	if (!conn) {
 		LOGP(DSUA, LOGL_ERROR, "DT1 for unknwon reference %u\n",
 			conn_id);
-		/* FIXME: error message? */
 		return -1;
 	}
 
 	if (conn->state != S_ACTIVE) {
 		LOGP(DSUA, LOGL_ERROR, "DT1 in invalid state %s\n",
 			get_value_string(conn_state_names, conn->state));
-		/* FIXME: error message? */
 		return -1;
 	}
 
