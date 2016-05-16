@@ -43,7 +43,28 @@ static LLIST_HEAD(sccp_connections);
 /* global data */
 const struct sockaddr_sccp sccp_ssn_bssap = {
 	.sccp_family	= 0,
-	.sccp_ssn	= SCCP_SSN_BSSAP,
+	.ssn	= SCCP_SSN_BSSAP,
+};
+
+struct sccp_variant sccp_variant[] = {
+	[SCCP_VARIANT_ITU] = {
+		.ai_national = 0x80,
+		.ai_gti_ind = 0x3c,
+		.ai_pc_ind = 0x01,
+		.ai_ssn_ind = 0x02,
+		.ai_route_ind = 0x40,
+		.pc_len = 2,
+		.pc_first = 1
+	},
+	[SCCP_VARIANT_ANSI] = {
+		.ai_national = 0x80,
+		.ai_gti_ind = 0x3c,
+		.ai_pc_ind = 0x02,
+		.ai_ssn_ind = 0x01,
+		.ai_route_ind = 0x40,
+		.pc_len = 3,
+		.pc_first = 0,
+	}
 };
 
 struct sccp_system {
@@ -51,11 +72,14 @@ struct sccp_system {
 	void (*write_data)(struct sccp_connection *conn, struct msgb *data,
 			   void *gctx, void *ctx);
 	void *write_context;
+
+	int variant;
 };
 
 
 static struct sccp_system sccp_system = {
 	.write_data = NULL,
+	.variant = SCCP_VARIANT_ITU
 };
 
 struct sccp_data_callback {
@@ -103,13 +127,15 @@ static void _send_msg(struct sccp_connection *conn, struct msgb *msg, void *ctx)
 /*
  * parsing routines
  */
-static int copy_address(struct sccp_address *addr, uint8_t offset, struct msgb *msgb)
+static int copy_address(struct sockaddr_sccp *addr, uint8_t offset, struct msgb *msgb)
 {
-	struct sccp_called_party_address *party;
-
 	int room = msgb_l2len(msgb) - offset;
+
+	uint8_t *data;
 	uint8_t read = 0;
 	uint8_t length;
+	uint8_t ai;
+	uint8_t pc_len = sccp_variant[sccp_system.variant].pc_len;
 
 	if (room <= 0) {
 		LOGP(DSCCP, LOGL_ERROR, "Not enough room for an address: %u\n", room);
@@ -122,36 +148,54 @@ static int copy_address(struct sccp_address *addr, uint8_t offset, struct msgb *
 		return -1;
 	}
 
+	data = msgb->l2h + offset + 1;
+	ai = data[0];
+	read++;
 
-	party = (struct sccp_called_party_address *)(msgb->l2h + offset + 1);
-	if (party->point_code_indicator) {
-		if (length <= read + 2) {
-		    LOGP(DSCCP, LOGL_ERROR, "POI does not fit %u\n", length);
-		    return -1;
-		}
+#define PARSE_POI \
+	do { \
+		if (ai & sccp_variant[sccp_system.variant].ai_pc_ind) { \
+			addr->use_poi = 1; \
+			if (length < (read + pc_len)) { \
+				LOGP(DSCCP, LOGL_ERROR, "POI does not fit %u\n", length); \
+				return -1; \
+			} \
+			memcpy(&addr->poi, &data[read], pc_len); \
+			read += pc_len; \
+		} \
+	} while (0)
 
+#define PARSE_SSN \
+	do { \
+		if (ai & sccp_variant[sccp_system.variant].ai_ssn_ind) { \
+			addr->use_ssn = 1; \
+			if (length < (read + 1)) { \
+				LOGP(DSCCP, LOGL_ERROR, "SSN does not fit %u\n", length); \
+				return -1; \
+			} \
+			addr->ssn = data[read]; \
+			read += 1; \
+		} \
+	} while (0)
 
-		memcpy(&addr->poi, &party->data[read], 2);
-		read += 2;
+	if (sccp_variant[sccp_system.variant].pc_first) {
+		PARSE_POI;
+		PARSE_SSN;
+	} else {
+		PARSE_SSN;
+		PARSE_POI;
 	}
 
-	if (party->ssn_indicator) {
-		if (length <= read + 1) {
-		    LOGP(DSCCP, LOGL_ERROR, "SSN does not fit %u\n", length);
-		    return -1;
-		}
-
-		addr->ssn = party->data[read];
-		read += 1;
-	}
+	addr->gti_ind = ((ai & sccp_variant[sccp_system.variant].ai_gti_ind) >> 2);
+	addr->route_ind = ai & sccp_variant[sccp_system.variant].ai_route_ind;
+	addr->national = ai & sccp_variant[sccp_system.variant].ai_national;
 
 	/* copy the GTI over */
-	if (party->global_title_indicator) {
-		addr->gti_len = length - read - 1;
-		addr->gti_data = &party->data[read];
+	if (addr->gti_ind) {
+		addr->gti_len = length - read;
+		addr->gti_data = &data[read];
 	}
 
-	addr->address = *party;
 	return 0;
 }
 
@@ -173,7 +217,6 @@ static int _sccp_parse_optional_data(const int offset,
 
 		uint8_t length = msgb->l2h[offset + read + 1];
 		read += 2 + length;
-
 
 		if (room <= read) {
 			LOGP(DSCCP, LOGL_ERROR,
@@ -486,32 +529,47 @@ static int _sccp_parse_err(struct msgb *msgb, struct sccp_parse_result *result)
 int sccp_create_sccp_addr(struct msgb *msg, const struct sockaddr_sccp *sock)
 {
 	uint8_t *len, *ai, *gti;
+	uint8_t *poi;
+	uint8_t pc_len = sccp_variant[sccp_system.variant].pc_len;
 
 	len = msgb_put(msg, 1);
 	ai = msgb_put(msg, 1);
 
+	if (sock->gti_data) ai[0] = (sock->gti_ind & 0x0f) << 2;
+	if (sock->route_ind || !sock->gti_data) ai[0] |= sccp_variant[sccp_system.variant].ai_route_ind;
 
-	if (sock->gti)
-		ai[0] = 0 << 6 | (sock->gti_ind & 0x0f) << 2 | 1 << 1;
-	else
-		ai[0] = 1 << 6 | 1 << 1;
+	/* National/reserved bit */
+	if (sock->national) ai[0] |= sccp_variant[sccp_system.variant].ai_national;
 
-	/* store a point code */
-	if (sock->use_poi) {
-		uint8_t *poi;
+	/* Pointcode ind */
+	if (sock->use_poi) ai[0] |= sccp_variant[sccp_system.variant].ai_pc_ind;
 
-		ai[0] |= 0x01;
-		poi = msgb_put(msg, 2);
-		poi[0] = sock->poi[0];
-		poi[1] = sock->poi[1];
+	/* SSN ind */
+	ai[0] |= sccp_variant[sccp_system.variant].ai_ssn_ind;
+
+#define ADD_POI \
+	do { \
+		if (sock->use_poi) { \
+			poi = msgb_put(msg, pc_len); \
+			if (!poi) return -1; \
+			memcpy(poi, &sock->poi[0], pc_len); \
+		} \
+	} while (0)
+
+#define ADD_SSN \
+	msgb_v_put(msg, sock->ssn)
+
+	if (sccp_variant[sccp_system.variant].pc_first) {
+		ADD_POI;
+		ADD_SSN;
+	} else {
+		ADD_SSN;
+		ADD_POI;
 	}
-
-	/* copy the SSN */
-	msgb_v_put(msg, sock->sccp_ssn);
 
 	/* copy the gti if it is present */
 	gti = msgb_put(msg, sock->gti_len);
-	memcpy(gti, sock->gti, sock->gti_len);
+	memcpy(gti, sock->gti_data, sock->gti_len);
 
 	/* update the length now */
 	len[0] = msg->tail - len - 1;
@@ -1225,6 +1283,11 @@ int sccp_system_init(void (*outgoing)(struct sccp_connection *conn, struct msgb 
 	return 0;
 }
 
+void sccp_set_variant(int variant)
+{
+	sccp_system.variant = variant;
+}
+
 /* oh my god a real SCCP packet. need to dispatch it now */
 int sccp_system_incoming(struct msgb *msgb)
 {
@@ -1355,7 +1418,7 @@ int sccp_connection_set_incoming(const struct sockaddr_sccp *sock,
 	if (!sock)
 		return -2;
 
-	cb = _find_ssn(sock->sccp_ssn);
+	cb = _find_ssn(sock->ssn);
 	if (!cb)
 		return -1;
 
@@ -1378,7 +1441,7 @@ int sccp_set_read(const struct sockaddr_sccp *sock,
 	if (!sock)
 		return -2;
 
-	cb  = _find_ssn(sock->sccp_ssn);
+	cb  = _find_ssn(sock->ssn);
 	if (!cb)
 		return -1;
 

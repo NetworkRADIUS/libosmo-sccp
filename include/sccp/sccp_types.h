@@ -26,6 +26,12 @@
 
 #include <osmocom/core/endian.h>
 
+/* Which variant of SCCP we're using */
+enum {
+	SCCP_VARIANT_ITU,
+	SCCP_VARIANT_ANSI
+};
+
 /* Table 1/Q.713 - SCCP message types */
 enum sccp_message_types {
 	SCCP_MSG_TYPE_CR	= 1,
