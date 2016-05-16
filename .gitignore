@@ -31,11 +31,11 @@ stamp-h1
 ltmain.sh
 libtool
 .libs
+src/.libs
 
 # git-version-gen magic
 .tarball-version
 .version
-
 
 # apps and app data
 hlr.sqlite3
@@ -61,12 +61,12 @@ tests/sms/sms_test
 tests/timer/timer_test
 tests/sigtran/sua_server_test
 tests/sigtran/sua_client_test
+tests/sigtran/.libs
 
 tests/atconfig
 tests/package.m4
 tests/testsuite
 tests/testsuite.log
-
 
 *.pc
 config.*
