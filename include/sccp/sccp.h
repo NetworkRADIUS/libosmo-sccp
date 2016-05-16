@@ -46,36 +46,35 @@ enum {
 	SCCP_CONNECTION_STATE_SETUP_ERROR,
 };
 
-struct sockaddr_sccp {
-	sa_family_t	sccp_family;		/* AF_SCCP in the future??? */
-	uint8_t	sccp_ssn;		/* subssystem number for routing */
+struct sccp_variant {
+	uint8_t ai_national;		/* National or reserved bit */
+	uint8_t ai_gti_ind;		/* GTI mask */
+	uint8_t ai_pc_ind;		/* Point code indicator mask */
+	uint8_t ai_ssn_ind;		/* SSN indicator mask */
+	uint8_t ai_route_ind;		/* Route type mask */
+	uint8_t pc_len;			/* Point code length */
+	uint8_t pc_first;		/* whether the pointcode comes before the SSN */
+};
 
-	/* TODO fill in address indicator... if that is ever needed */
+struct sockaddr_sccp {
+	sa_family_t	sccp_family;	/* AF_SCCP in the future??? */
+
+	uint8_t use_poi : 1,		/* Include Point Code */
+		use_ssn : 1,		/* Include SSN */
+		gti_ind : 4,		/* Any of SCCP_TITLE_IND_* */
+		route_ind : 1,		/* Route on SSN instead of GTI */
+		national : 1;		/* National address format in ANSI, national usage/reserved in ITU */
+
+	uint8_t poi[3];			/* Allows ITU 14bit and ANSI 24bit */
+
+	uint8_t	ssn;			/* SubsSystem number for routing */
 
 	/* optional gti information */
-	uint8_t *gti;
+	uint8_t *gti_data;
 	int gti_len;
-
-	/* any of SCCP_TITLE_IND_* */
-	uint8_t gti_ind;
-
-	int use_poi;
-	uint8_t poi[2];
 
 	/* not sure about these */
 	/* uint8_t    sccp_class; */
-};
-
-/*
- * parsed structure of an address
- */
-struct sccp_address {
-	struct sccp_called_party_address    address;
-	uint8_t			    ssn;
-	uint8_t			    poi[2];
-
-	uint8_t			    *gti_data;
-	int			    gti_len;
 };
 
 struct sccp_optional_data {
@@ -103,6 +102,8 @@ struct sccp_connection {
 	int incoming;
 };
 
+extern struct sccp_variant sccp_variant[];
+
 /**
  * system functionality to implement on top of any other transport layer:
  *   call sccp_system_incoming for incoming data (from the network)
@@ -122,7 +123,7 @@ int sccp_connection_close(struct sccp_connection *connection, int cause);
 int sccp_connection_free(struct sccp_connection *connection);
 
 /**
- * internal.. 
+ * internal..
  */
 int sccp_connection_force_free(struct sccp_connection *conn);
 
@@ -157,6 +158,7 @@ int sccp_write(struct msgb *data,
 int sccp_set_read(const struct sockaddr_sccp *sock,
 		  int (*read_cb)(struct msgb *msgb, unsigned int, void *user_data),
 		  void *user_data);
+void sccp_set_variant(int variant);
 
 /* generic sock addresses */
 extern const struct sockaddr_sccp sccp_ssn_bssap;
@@ -177,8 +179,8 @@ struct msgb *sccp_create_udt(int _class, const struct sockaddr_sccp *sock_sender
  * Below this are helper functions and structs for parsing SCCP messages
  */
 struct sccp_parse_result {
-	struct sccp_address called;
-	struct sccp_address calling;
+	struct sockaddr_sccp called;
+	struct sockaddr_sccp calling;
 
 	/* point to the msg packet */
 	struct sccp_source_reference *source_local_reference;

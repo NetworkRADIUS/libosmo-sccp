@@ -305,7 +305,7 @@ struct sccp_parse_header_result {
 };
 
 static const uint8_t it_test[] = {
-0x10, 0x01, 0x07, 
+0x10, 0x01, 0x07,
 0x94, 0x01, 0x04, 0x00, 0x02, 0x00, 0x00, 0x00 };
 
 static const uint8_t proto_err[] = {
@@ -873,15 +873,15 @@ static void test_sccp_parsing(void)
 
 			if (parse_result[current_test].dst_ssn != -1 &&
 			    parse_result[current_test].dst_ssn != result.called.ssn) {
-				FAIL("Called SSN is wrong..\n");
+				FAIL("Called SSN is wrong...\n");
 			}
 
 			if (parse_result[current_test].src_gti_len != result.calling.gti_len) {
-				FAIL("GTI length is wrong: %d\n", result.calling.gti_len);
+				FAIL("GTI length is wrong: Expected %d, got %d\n", parse_result[current_test].src_gti_len, result.calling.gti_len);
 			}
 
 			if (parse_result[current_test].dst_gti_len != result.called.gti_len) {
-				FAIL("GTI length is wrong: %d\n", result.called.gti_len);
+				FAIL("GTI length is wrong: Expected %d, got %d\n", parse_result[current_test].dst_gti_len, result.called.gti_len);
 			}
 
 			if (memcmp(&parse_result[current_test].dst_gti_data[0],
@@ -919,7 +919,7 @@ static uint8_t ssn_out[] = {
 
 const struct sockaddr_sccp sccp_poi_bssap = {
 	.sccp_family	= 0,
-	.sccp_ssn	= SCCP_SSN_BSSAP,
+	.ssn		= SCCP_SSN_BSSAP,
 	.poi            = {0x01, 0x00},
 	.use_poi        = 1,
 };
@@ -934,10 +934,10 @@ static uint8_t gti_dat[] = {
 
 const struct sockaddr_sccp sccp_gti_bssap = {
 	.sccp_family	= 0,
-	.sccp_ssn	= 7,
+	.ssn		= 7,
 	.gti_ind	= 4,
 	.gti_len	= ARRAY_SIZE(gti_dat),
-	.gti		= gti_dat,
+	.gti_data	= gti_dat,
 };
 
 static uint8_t gti_out[] = {
