@@ -28,6 +28,8 @@ PKG_PROG_PKG_CONFIG([0.20])
 
 PKG_CHECK_MODULES(LIBOSMOCORE, libosmocore >= 0.3.0)
 PKG_CHECK_MODULES(LIBOSMONETIF, libosmo-netif >= 0.0.6)
+PKG_CHECK_MODULES([LIBOSMOGSM], [libosmogsm])
+PKG_CHECK_MODULES([TALLOC], [talloc])
 
 # The following test is taken from WebKit's webkit.m4
 saved_CFLAGS="$CFLAGS"

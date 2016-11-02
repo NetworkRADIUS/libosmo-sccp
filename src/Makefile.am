@@ -4,16 +4,20 @@ AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS) $(LIBOSMONETIF_CFLAGS)
 # Legacy static libs
 
 sccpdir = $(libdir)
-sccp_LIBRARIES = libsccp.a libmtp.a libxua.a
+sccp_LTLIBRARIES = libosmo-sccp.la libosmo-mtp.la libosmo-xua.la
 
-libsccp_a_SOURCES = sccp.c
-libmtp_a_SOURCES = mtp_pcap.c
-libxua_a_SOURCES = xua_msg.c
+libosmo_sccp_la_SOURCES = sccp.c
+libosmo_mtp_la_SOURCES = mtp_pcap.c 
+libosmo_xua_la_SOURCES = xua_msg.c
+
+libosmo_sccp_la_LDFLAGS = -release ${PACKAGE_VERSION}
+libosmo_mtp_la_LDFLAGS = -release ${PACKAGE_VERSION}
+libosmo_xua_la_LDFLAGS = -release ${PACKAGE_VERSION}
+
 # ensure that the file for the static lib is built with different C
 # flags, working around automake complaining that xua_msg.o is built
 # both with libtool (below) and without (here)
 libxua_a_CPPFLAGS = $(AM_CPPFLAGS) -DDUMMY -UDUMMY
-
 
 # New shared lib
 
